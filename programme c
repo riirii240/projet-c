@@ -1,0 +1,1014 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_CAR_SIZE 100
+#define MAX_BRAND_SIZE 50
+#define MAX_MODEL_SIZE 50
+#define MAX_TRANSMISSION_SIZE 20
+#define MAX_FUELTYPE_SIZE 20
+#define MAX_CLIENT_SIZE 100
+#define MAX_EMPLOYEE_SIZE 100
+#define MAX_STRING_LENGTH 100
+
+typedef struct {
+    int id;
+    char brand[MAX_BRAND_SIZE];
+    char model[MAX_MODEL_SIZE];
+    char fuelType[MAX_FUELTYPE_SIZE];
+    int numberOfSeats;
+    char transmission[MAX_TRANSMISSION_SIZE];
+    float rentalPricePerDay;
+    int availability; // 1 for available, 0 for not available
+    int age; // Age of the car
+} Car;
+
+typedef struct {
+    int clientid;
+    char username[MAX_STRING_LENGTH];
+    char address[MAX_STRING_LENGTH];
+} Client;
+
+typedef struct {
+    int ID;
+    int clientId;
+    Car car;
+    char startDate[20];
+    char endDate[20];
+    float dailyRate;
+    float additionalFees;
+} Rental;
+
+typedef struct {
+    int id1;
+    char name[MAX_STRING_LENGTH];
+    char position[MAX_STRING_LENGTH];
+} Employee;
+
+typedef struct {
+    int id2;
+    int carId;
+    int clientId;
+    char startDate[11]; // "DD-MM-YYYY"
+    char endDate[11]; // "DD-MM-YYYY"
+    float totalCost;
+} Reservation;
+
+// Global Arrays to Store Data
+Car cars[MAX_CAR_SIZE];
+Client clients[MAX_CLIENT_SIZE];
+Employee employees[MAX_EMPLOYEE_SIZE];
+Reservation reservations[MAX_CAR_SIZE];
+
+// Function Declarations
+void welcomeMessage();
+void mainMenu();
+void addCar();
+void modifyCar();
+void deleteCar();
+void displayAvailableCars();
+void searchCars();
+void sortCars();
+void sellCarsOver5Years();
+void recommendCarModel();
+void makeReservation();
+void cancelReservation();
+void addClient();
+void displayCarDetails();
+void calculateRentalCost();
+void generateInvoice();
+void deleteEmployees();
+void manageEmployees();
+void addEmployees();
+void modifyEmployees();
+void clearBuffer();
+
+int carCount = 0, clientCount = 0, employeeCount = 0, reservationCount = 0;
+
+
+void welcomeMessage() {
+    printf("Welcome to the Car Rental Management System\n");
+}
+
+void clearBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) {
+        // Nettoyage du buffer
+    }
+}
+
+void printCar(Car car) {
+    printf("ID: %d\n", car.id);
+    printf("Brand: %s\n", car.brand);
+    printf("Model: %s\n", car.model);
+    printf("Fuel Type: %s\n", car.fuelType);
+    printf("Number of Seats: %d\n", car.numberOfSeats);
+    printf("Transmission: %s\n", car.transmission);
+    printf("Rental Price per Day: %.2f\n", car.rentalPricePerDay);
+    printf("Availability: %s\n", car.availability ? "Available" : "Not Available");
+    printf("Age: %d years\n\n", car.age);
+}
+
+void addCar() {
+    FILE *file = fopen("cars.csv", "a");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    Car newCar;
+    printf("Enter Car ID: ");
+    scanf("%d", &newCar.id);
+    clearBuffer();
+    printf("Enter Car Brand: ");
+    fgets(newCar.brand, MAX_BRAND_SIZE, stdin);
+    newCar.brand[strcspn(newCar.brand, "\n")] = 0;
+    printf("Enter Car Model: ");
+    fgets(newCar.model, MAX_MODEL_SIZE, stdin);
+    newCar.model[strcspn(newCar.model, "\n")] = 0;
+    printf("Enter Fuel Type: ");
+    fgets(newCar.fuelType, 20, stdin);
+    newCar.fuelType[strcspn(newCar.fuelType, "\n")] = 0;
+    printf("Enter Number of Seats: ");
+    scanf("%d", &newCar.numberOfSeats);
+    clearBuffer();
+    printf("Enter Transmission (Automatic/Manual): ");
+    fgets(newCar.transmission, 20, stdin);
+    newCar.transmission[strcspn(newCar.transmission, "\n")] = 0;
+    printf("Enter Rental Price per Day: ");
+    scanf("%f", &newCar.rentalPricePerDay);
+    clearBuffer();
+    printf("Enter Availability (1-Yes/0-No): ");
+    scanf("%d", &newCar.availability);
+    clearBuffer();
+    printf("Enter Car Age: ");
+    scanf("%d", &newCar.age);
+    clearBuffer();
+
+    fprintf(file, "%d,%s,%s,%s,%s,%d,%s,%.2f,%d,%d\n",
+            newCar.id, newCar.brand, newCar.model, newCar.fuelType,
+            newCar.numberOfSeats, newCar.transmission, newCar.rentalPricePerDay,
+            newCar.availability, newCar.age);
+    fclose(file);
+    printf("Car added successfully.\n");
+}
+
+void addClient() {
+    FILE *file = fopen("clients.csv", "a");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    Client client;
+    printf("Client ID: ");
+    scanf("%d", &client.clientid);
+    clearBuffer();
+    printf("Client Name: ");
+    fgets(client.username, MAX_STRING_LENGTH, stdin);
+    client.username[strcspn(client.username, "\n")] = 0;
+    printf("Client Address: ");
+    fgets(client.address, 100, stdin);
+    client.address[strcspn(client.address, "\n")] = 0;
+
+    fprintf(file, "%d,%s,%s\n", client.clientid, client.username, client.address);
+    fclose(file);
+    printf("Client added successfully.\n");
+}
+
+void modifyCar() {
+    int carId;
+    printf("Enter Car ID to modify: ");
+    scanf("%d", &carId);
+    clearBuffer();
+
+    Car car[MAX_CAR_SIZE];
+    int count = 0, index = -1;
+
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    // Charge toutes les voitures dans la mémoire
+    while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &car[count].id, car[count].brand, car[count].model, car[count].fuelType, &cars[count].numberOfSeats, cars[count].transmission, &car[count].rentalPricePerDay, &car[count].availability, &car[count].age) != EOF) {
+        if (car[count].id == carId) {
+            index = count; // Sauvegarde l'index de la voiture à modifier
+        }
+        count++;
+    }
+    fclose(file);
+
+    if (index == -1) {
+        printf("Car not found.\n");
+        return;
+    }
+
+    // Met à jour la voiture trouvée avec de nouvelles informations
+    printf("Enter New Car Brand: ");
+    fgets(cars[index].brand, MAX_BRAND_SIZE, stdin);
+    cars[index].brand[strcspn(cars[index].brand, "\n")] = 0;
+    printf("Enter New Car Model: ");
+    fgets(cars[index].model, MAX_MODEL_SIZE, stdin);
+    cars[index].model[strcspn(cars[index].model, "\n")] = 0;
+    printf("Enter New Fuel Type: ");
+    fgets(cars[index].fuelType, 20, stdin);
+    cars[index].fuelType[strcspn(cars[index].fuelType, "\n")] = 0;
+    printf("Enter New Number of Seats: ");
+    scanf("%d", &cars[index].numberOfSeats);
+    clearBuffer();
+    printf("Enter New Transmission Type (Automatic/Manual): ");
+    fgets(car[index].transmission, 20, stdin);
+    cars[index].transmission[strcspn(car[index].transmission, "\n")] = 0;
+    printf("Enter New Rental Price per Day: ");
+    scanf("%f", &car[index].rentalPricePerDay);
+    clearBuffer();
+    printf("Enter New Availability (1-Yes/0-No): ");
+    scanf("%d", &car[index].availability);
+    clearBuffer();
+    printf("Enter New Car Age: ");
+    scanf("%d", &car[index].age);
+    clearBuffer();
+
+    // Réécrit le fichier complet avec les données mises à jour
+    file = fopen("cars.csv", "w");
+    for (int i = 0; i < count; i++) {
+        fprintf(file, "%d,%s,%s,%s,%s,%d,%s,%.2f,%d,%d\n",
+                car[i].id, car[i].brand, car[i].model, car[i].fuelType,
+                car[i].numberOfSeats, car[i].transmission, car[i].rentalPricePerDay,
+                car[i].availability, car[i].age);
+    }
+    fclose(file);
+    printf("Car modified successfully.\n");
+}
+
+void deleteCar() {
+    int carId;
+    printf("Enter Car ID to delete: ");
+    scanf("%d", &carId);
+    clearBuffer();
+
+    Car cars[MAX_CAR_SIZE];
+    int count = 0, index = -1;
+
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    // Charge toutes les voitures
+    while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &cars[count].id, cars[count].brand, cars[count].model, cars[count].fuelType, &cars[count].numberOfSeats, cars[count].transmission, &cars[count].rentalPricePerDay, &cars[count].availability, &cars[count].age) != EOF) {
+        if (cars[count].id != carId) {
+            count++;
+        } else {
+            index = count; // Voiture à supprimer trouvée
+        }
+    }
+    fclose(file);
+
+    if (index == -1) {
+        printf("Car not found.\n");
+        return;
+    }
+
+    // Réécrit le fichier sans la voiture supprimée
+    file = fopen("cars.csv", "w");
+    for (int i = 0; i < count; i++) {
+        if (i != index) {
+            fprintf(file, "%d,%s,%s,%s,%s,%d,%s,%.2f,%d,%d\n",
+                    cars[i].id, cars[i].brand, cars[i].model, cars[i].fuelType,
+                    cars[i].numberOfSeats, cars[i].transmission, cars[i].rentalPricePerDay,
+                    cars[i].availability, cars[i].age);
+        }
+    }
+    fclose(file);
+    printf("Car deleted successfully.\n");
+}
+
+void addRental() {
+    FILE *file = fopen("rentals.csv", "a");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    Rental newRental;
+    printf("Enter Client Username: ");
+    scanf("%s", newRental.clientId);
+    printf("Enter Car ID: ");
+    scanf("%d", &newRental.ID);
+    printf("Enter Start Date (dd/mm/yyyy): ");
+    scanf("%s", newRental.startDate);
+    printf("Enter End Date (dd/mm/yyyy): ");
+    scanf("%s", newRental.endDate);
+    printf("Enter Daily Rate: ");
+    scanf("%f", &newRental.dailyRate);
+    printf("Enter Additional Fees: ");
+    scanf("%f", &newRental.additionalFees);
+
+    fprintf(file, "%s,%d,%d,%s,%s,%.2f,%.2f\n",
+            newRental.clientId, newRental.ID, newRental.clientId,
+            newRental.startDate, newRental.endDate, newRental.dailyRate, newRental.additionalFees);
+    fclose(file);
+    printf("Rental added successfully.\n");
+}
+
+void updateClient() {
+    int id;
+    printf("Enter Client ID to update: ");
+    scanf("%d", &id);
+
+    FILE *file = fopen("clients.csv", "r+");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    Client client;
+    int found = 0;
+
+    while (fscanf(file, "%d,%[^,],%[^\n]\n", &client.clientid, client.username, client.address) != EOF) {
+        if (client.clientid == id) {
+            found = 1;
+            printf("New client name: ");
+            scanf("%s", client.username);
+            printf("New client address: ");
+            scanf("%s", client.address);
+            printf("Client information updated successfully.\n");
+            fseek(file, ftell(file) - strlen(client.username) - strlen(client.address) - 4, SEEK_SET); // Move the file pointer back to the beginning of the line
+            fprintf(file, "%d,%s,%s\n", client.clientid, client.username, client.address);
+            break;
+        }
+    }
+
+    fclose(file);
+
+    if (!found) {
+        printf("No client found with that ID.\n");
+    }
+}
+void generateInvoice() {
+	int duration;
+Client client;
+Car car;
+Rental rental;
+
+    float rental_cost ;
+
+    FILE *file = fopen("cars.csv", "a");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    fprintf(file, "Generated Invoice:\n");
+    fprintf(file, "Client: %s\n", client.clientid);
+    fprintf(file, "Car: %s %s\n", car.brand, car.model);
+    fprintf(file, "Rental duration: %d days\n", duration);
+    fprintf(file, "Total cost: %.2f\n", rental_cost);
+
+    fclose(file);
+
+    printf("Invoice generated and written to cars.csv.\n");
+}
+
+void searchCars() {
+    char searchBrand[MAX_BRAND_SIZE];
+    int searchAvailability;
+    printf("Enter Car Brand to search (or press ENTER for any brand): ");
+    fgets(searchBrand, sizeof(searchBrand), stdin);
+    searchBrand[strcspn(searchBrand, "\n")] = 0;
+
+    printf("Enter Availability to search (1 for available, 0 for not available, -1 for any): ");
+    scanf("%d", &searchAvailability);
+
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    FILE *outputFile = fopen("search_results.csv", "w");
+    if (outputFile == NULL) {
+        printf("Error opening output file.\n");
+        fclose(file);
+        return;
+    }
+
+    fprintf(outputFile, "Search Results:\n");
+    Car car;
+    int found = 0;
+    while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &car.id, car.brand, car.model, car.fuelType, &car.numberOfSeats, car.transmission, &car.rentalPricePerDay, &car.availability, &car.age) != EOF) {
+        if ((strlen(searchBrand) == 0 || strcmp(car.brand, searchBrand) == 0) && (searchAvailability == -1 || car.availability == searchAvailability)) {
+            fprintf(outputFile, "%d,%s,%s,%s,%s,%d,%s,%.2f,%d,%d\n", car.id, car.brand,car.model, car.fuelType, car.numberOfSeats, car.transmission, car.rentalPricePerDay, car.availability, car.age);
+            found = 1;
+        }
+    }
+    if (!found) {
+        fprintf(outputFile, "No cars found.\n");
+    }
+
+    fclose(file);
+    fclose(outputFile);
+
+    printf("Search results written to search_results.csv.\n");
+}
+
+void CarReservation() {
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    FILE *outputFile = fopen("reservation_results.csv", "w");
+    if (outputFile == NULL) {
+        printf("Error opening output file.\n");
+        fclose(file);
+        return;
+    }
+
+    printf("Cars for reservation:\n");
+    Car car;
+    int found = 0;
+    int taille = 0;
+    Car cars[MAX_CAR_SIZE]; // Initialize voitures array
+
+    while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &car.id, car.brand, car.model,
+                  car.fuelType, &car.numberOfSeats, car.transmission, &car.rentalPricePerDay, &car.availability,
+                  &car.age) != EOF) {
+        if (taille < MAX_CAR_SIZE && car.availability) {
+            cars[taille] = car;
+            taille++;
+            printCar(car);
+            found = 1;
+        }
+    }
+
+    if (!found) {
+        fprintf(outputFile, "No cars for reservation.\n");
+    } else {
+        fprintf(outputFile, "Cars available for reservation:\n");
+        for (int i = 0; i < taille; i++) {
+            fprintf(outputFile, "%d,%s,%s,%s,%s,%d,%s,%.2f,%d,%d\n", cars[i].id, cars[i].brand,
+                    cars[i].model, cars[i].fuelType, cars[i].numberOfSeats,cars[i].transmission,
+                    cars[i].rentalPricePerDay, cars[i].availability, cars[i].age);
+        }
+    }
+
+    fclose(file);
+    fclose(outputFile);
+
+    printf("Reservation results written to reservation_results.csv.\n");
+}
+
+
+void checkReservationAvailability() {
+    int carId;
+    char startDate[11], endDate[11];
+
+    printf("Enter car ID to check availability: ");
+    scanf("%d", &carId);
+    getchar(); // Vider le tampon d'entrée
+
+    printf("Enter start date (DD-MM-YYYY): ");
+    fgets(startDate, 11, stdin);
+    startDate[strcspn(startDate, "\n")] = '\0';
+
+    printf("Enter end date (DD-MM-YYYY): ");
+    fgets(endDate, 11, stdin);
+    endDate[strcspn(endDate, "\n")] = '\0';
+
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    char line[1000];
+    fgets(line, sizeof(line), file); // Ignorer la première ligne (en-têtes)
+
+    int carFound = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        Reservation reservation;
+
+        sscanf(line, "%d,%[^,],%[^,],%[^\n]", &reservation.carId, reservation.startDate, reservation.endDate);
+
+        if (reservation.carId == carId &&
+            ((strcmp(reservation.startDate, startDate) <= 0 && strcmp(reservation.endDate, startDate) >= 0) ||
+             (strcmp(reservation.startDate, endDate) <= 0 && strcmp(reservation.endDate, endDate) >= 0))) {
+            printf("This car is not available from %s to %s\n", startDate, endDate);
+            carFound = 1;
+            break;
+        }
+    }
+
+    if (!carFound) {
+        printf("This car is available from %s to %s\n", startDate, endDate);
+    }
+
+    fclose(file);
+}
+void cancelReservation() {
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    FILE *outputFile = fopen("cancel_results.csv", "w");
+    if (outputFile == NULL) {
+        printf("Error opening output file.\n");
+        fclose(file);
+        return;
+    }
+
+    printf("Cars for reservation:\n");
+    Car car;
+    int found = 0;
+    int taille = 0;
+    Car voitures[MAX_CAR_SIZE]; // Initialize voitures array
+
+    while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &car.id, car.brand, car.model,
+                  car.fuelType, &car.numberOfSeats, car.transmission, &car.rentalPricePerDay, &car.availability,
+                  &car.age) != EOF) {
+        if (taille < MAX_CAR_SIZE && !car.availability) {
+            voitures[taille] = car;
+            taille++;
+            printCar(car);
+            found = 1;
+        }
+    }
+
+    if (!found) {
+        fprintf(outputFile, "No reservations to cancel.\n");
+    } else {
+        fprintf(outputFile, "Reservations canceled successfully:\n");
+        for (int i = 0; i < taille; i++) {
+            fprintf(outputFile, "%d,%s,%s,%s,%s,%d,%s,%.2f,%d,%d\n",  cars[i].id, cars[i].brand,
+                    cars[i].model,cars[i].fuelType,  cars[i].numberOfSeats,  cars[i].transmission,
+                    cars[i].rentalPricePerDay, cars[i].availability, cars[i].age);
+        }
+    }
+
+    fclose(file);
+    fclose(outputFile);
+
+    printf("Cancellation results written to cancel_results.csv.\n");
+}
+int compareByBrand(const void* a, const void* b) {
+    const Car* carA = (const Car*)a;
+    const Car* carB = (const Car*)b;
+    return strcmp(carA->brand, carB->brand);
+}
+
+int compareByPrice(const void* a, const void* b) {
+    const Car* carA = (const Car*)a;
+    const Car* carB = (const Car*)b;
+    if (carA->rentalPricePerDay < carB->rentalPricePerDay)
+        return -1;
+    else if (carA->rentalPricePerDay > carB->rentalPricePerDay)
+        return 1;
+    else
+        return 0;
+}
+
+int compareByAvailability(const void* a, const void* b) {
+    const Car* carA = (const Car*)a;
+    const Car* carB = (const Car*)b;
+    if (carA->availability < carB->availability)
+        return -1;
+    else if (carA->availability > carB->availability)
+        return 1;
+    else
+        return 0;
+}
+void sortCars() {
+    FILE* file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+Car car;
+    int count = 0;
+   while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &car.id, car.brand, car.model,
+                  car.fuelType, &car.numberOfSeats, car.transmission, &car.rentalPricePerDay, &car.availability,
+                  &car.age) != EOF) {
+        count++;
+    }
+    fclose(file);
+
+    int sortOption;
+    printf("Sort cars by:\n1. Brand\n2. Rental Price per Day\n3. Availability\nChoose option: ");
+    scanf("%d", &sortOption);
+
+    switch (sortOption) {
+        case 1:
+            qsort(cars, count, sizeof(Car), compareByBrand);
+            break;
+        case 2:
+            qsort(cars, count, sizeof(Car), compareByPrice);
+            break;
+        case 3:
+            qsort(cars, count, sizeof(Car), compareByAvailability);
+            break;
+        default:
+            printf("Invalid sort option.\n");
+            return;
+    }
+
+    for (int i = 0; i < count; i++) {
+        printCar(cars[i]);
+    }
+}
+
+void recommendCarModel() {
+    int seatsNeeded;
+    printf("Enter the number of seats needed: ");
+    scanf("%d", &seatsNeeded);
+
+    FILE *file = fopen("cars.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    printf("Recommended car models:\n");
+    Car car;
+    int found = 0;
+    while (fscanf(file, "%d,%[^,],%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d\n", &car.id, car.brand, car.model,
+                  car.fuelType, &car.numberOfSeats, car.transmission, &car.rentalPricePerDay, &car.availability, &car.age) != EOF) {
+        if (car.availability && car.numberOfSeats >= seatsNeeded) {
+            printCar(car);
+            found = 1;
+        }
+    }
+
+    if (!found) {
+        printf("No car models available with the requested number of seats.\n");
+    }
+    fclose(file);
+}
+
+void sellCarsOver5Years() {
+
+    FILE *file = fopen("cars.csv", "r");
+
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    char line[1000];
+    fgets(line, sizeof(line), file); // Ignorer la première ligne (en-têtes)
+
+    printf("Cars older than 5 years and available for sale:\n");
+
+    while (fgets(line, sizeof(line), file)) {
+        Car car;
+        sscanf(line, "%d,%[^,],%[^,],%[^,],%d,%[^,],%f,%d,%d",
+               &car.id, car.brand, car.model, car.fuelType,
+               &car.numberOfSeats, car.transmission, &car.rentalPricePerDay,
+               &car.availability, &car.age);
+
+        if (car.age > 5 && car.availability == 1) {
+            printf("Car ID: %d\n", car.id);
+            printf("Brand: %s\n", car.brand);
+            printf("Model: %s\n", car.model);
+            printf("Fuel Type: %s\n", car.fuelType);
+            printf("Number of Seats: %d\n", car.numberOfSeats);
+            printf("Transmission: %s\n", car.transmission);
+            printf("Rental Price per Day: %.2f\n", car.rentalPricePerDay);
+            printf("Availability: Available\n");
+            printf("Age: %d years\n", car.age);
+            printf("----------------------------\n");
+        }
+    }
+
+    fclose(file);
+}
+void calculateRentalCost() {
+    int id, days;
+    printf("Enter car ID to calculate rental cost: ");
+    scanf("%d", &id);
+    clearBuffer();
+
+    printf("Enter number of days for rental: ");
+    scanf("%d", &days);
+    clearBuffer();
+
+    FILE *file = fopen("rental.csv", "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    char line[1000];
+    fgets(line, sizeof(line), file); // Ignorer la première ligne (en-têtes)
+
+    int carFound = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        Car car;
+        sscanf(line, "%d,%f", &car.id, &car.rentalPricePerDay);
+
+        if (car.id == id) {
+            float cost = days * car.rentalPricePerDay;
+            printf("Total rental cost for %d days is: %.2f\n", days, cost);
+            carFound = 1;
+            break;
+        }
+    }
+
+    if (!carFound) {
+        printf("Car ID %d not found.\n", id);
+    }
+
+    fclose(file);
+}
+
+void addEmployee(FILE *file) {
+    Employee employee;
+    printf("Enter employee ID: ");
+    scanf("%d", &employee.id1);
+    clearBuffer();
+
+    printf("Enter employee name: ");
+    fgets(employee.name, sizeof(employee.name), stdin);
+    employee.name[strcspn(employee.name, "\n")] = '\0';
+
+    printf("Enter employee position: ");
+    fgets(employee.position, sizeof(employee.position), stdin);
+    employee.position[strcspn(employee.position, "\n")] = '\0';
+
+    fprintf(file, "%d,%s,%s\n", employee.id1, employee.name, employee.position);
+    printf("Employee added successfully.\n");
+}
+
+void modifyEmployee(FILE *file) {
+    int id;
+    printf("Enter employee ID to modify: ");
+    scanf("%d", &id);
+    clearBuffer();
+
+    FILE *tempFile = fopen("temp.csv", "w");
+    if (tempFile == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    char line[1000];
+    fgets(line, sizeof(line), file); // Copy the headers to the temp file
+    fprintf(tempFile, "%s", line);
+
+    int employeeFound = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        Employee employee;
+        sscanf(line, "%d,%[^,],%[^\n]", &employee.id1, employee.name, employee.position);
+
+        if (employee.id1 == id) {
+            printf("Enter employee name: ");
+            fgets(employee.name, sizeof(employee.name), stdin);
+            employee.name[strcspn(employee.name, "\n")] = '\0';
+
+            printf("Enter employee position: ");
+            fgets(employee.position, sizeof(employee.position), stdin);
+            employee.position[strcspn(employee.position, "\n")] = '\0';
+
+            fprintf(tempFile, "%d,%s,%s\n", employee.id1, employee.name, employee.position);
+            printf("Employee modified successfully.\n");
+            employeeFound = 1;
+        } else {
+            fprintf(tempFile, "%d,%s,%s", employee.id1, employee.name, employee.position);
+        }
+    }
+
+    if (!employeeFound) {
+        printf("Employee ID %d not found.\n", id);
+    }
+
+    fclose(tempFile);
+    fclose(file);
+
+    remove("employee.csv");
+    rename("temp.csv", "employee.csv");
+    file = fopen("employee.csv", "r");
+}
+
+void deleteEmployee(FILE *file) {
+    int id;
+    printf("Enter employee ID to delete: ");
+    scanf("%d", &id);
+    clearBuffer();
+
+    FILE *tempFile = fopen("temp.csv", "w");
+    if (tempFile == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    char line[1000];
+    fgets(line, sizeof(line), file); // Copy the headers to the temp file
+    fprintf(tempFile, "%s", line);
+
+    int employeeFound = 0;
+
+    while (fgets(line, sizeof(line), file)) {
+        Employee employee;
+        sscanf(line, "%d,%[^,],%[^\n]", &employee.id1, employee.name, employee.position);
+
+        if (employee.id1 == id) {
+            printf("Employee deleted successfully.\n");
+            employeeFound = 1;
+        } else {
+            fprintf(tempFile, "%d,%s,%s", employee.id1, employee.name, employee.position);
+        }
+    }
+
+    if (!employeeFound) {
+        printf("Employee ID %d not found.\n", id);
+    }
+
+    fclose(tempFile);
+    fclose(file);
+
+    remove("employee.csv");
+    rename("temp.csv", "employee.csv");
+    file = fopen("employee.csv", "r");
+}
+
+void manageEmployees() {
+    FILE *file = fopen("employee.csv", "a+");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return;
+    }
+
+    int choice;
+    printf("1. Add Employee\n2. Modify Employee\n3. Delete Employee\nEnter your choice: ");
+    scanf("%d", &choice);
+    clearBuffer();
+
+    switch (choice) {
+        case 1:
+            addEmployee(file);
+            break;
+        case 2:
+            modifyEmployee(file);
+            break;
+        case 3:
+            deleteEmployee(file);
+            break;
+        default:
+            printf("Invalid choice.\n");
+            break;
+    }
+
+    fclose(file);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+int main() {
+
+void welcomeMessage();
+void addCar();
+void modifyCar();
+void deleteCar();
+void checkReservationAvailability();
+void displayAvailableCars();
+void searchCars();
+void sortCars();
+void sellCarsOver5Years();
+void recommendCarModel();
+void cancelReservation();
+void addClient();
+void displayCarDetails();
+void calculateRentalCost();
+void generateInvoice();
+void deleteEmployees();
+void manageEmployees();
+void addEmployees();
+void modifyEmployees();
+void clearBuffer();
+void addRental();
+void updateClient();
+void CarReservation();
+void calculateRentalCost();
+
+    // Implémentation simplifiée
+    int choice;
+    do {
+        printf("** Car Rental Management System **\n");
+        printf("1.welcomeMessage\n");
+        printf("2. Add a new car\n");
+        printf("3. Modify a car\n");
+        printf("4. Add a new client\n");
+        printf("5. Delete a car\n");
+        printf("6. addRental\n");
+        printf("7. updateClient\n");
+        printf("8. Generate Invoice\n");
+        printf("9.CarReservation\n");
+        printf("10.cancelReservation\n");
+        printf("11.sortCars\n");
+        printf("12.recommendCarModel\n");
+        printf("13.sellCarsOver5Years\n");
+        printf("14.checkReservationAvailability\n");
+        printf("15.addEmployees\n");
+        printf("16.modifyEmployees\n");
+        printf("17.deleteEmployees\n");
+        printf("19.manageEmployees\n");
+        printf("20.calculateRentalCost\n");
+		printf("0. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        clearBuffer();
+
+        switch (choice) {
+            case 1:
+                addCar();
+                break;
+            case 2:
+                modifyCar();
+                break;
+            case 3:
+                addClient();
+                break;
+            case 4:
+                deleteCar();
+                break;
+            case 5:
+                addRental();
+                break;
+
+            case 6:
+                generateInvoice();
+                break;
+
+            case 7:
+                searchCars();
+			    break;
+
+             case 8:
+                  updateClient();
+                break;
+
+             case 9:
+                 CarReservation();
+                break;
+
+             case 10:
+                 cancelReservation();
+                break;
+
+            case 11:
+                 sortCars ();
+                  break;
+
+			 case 12:
+                 recommendCarModel ();
+                  break;
+
+             case 13:
+                 sellCarsOver5Years ();
+                  break;
+
+            case 14 :
+                  checkReservationAvailability();
+                  break;
+
+            case 15 :
+                  manageEmployees();
+                  break;
+
+            case 16 :
+                 calculateRentalCost();
+				 break;
+
+
+            case 0:
+                printf("Exiting the program. Goodbye!\n");
+                break;
+
+            default:
+                printf("Invalid choice. Please enter a valid option.\n");
+        }
+    } while (choice != 0);
+
+    return 0;
+}
